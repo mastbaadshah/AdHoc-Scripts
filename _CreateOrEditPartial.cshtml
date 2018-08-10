@@ -1,0 +1,494 @@
+@using System.Linq
+@using Business.PayWall
+@using CreativeFactory.MVC
+@using Data.Enumerations.Cobrands
+@using Data.Enumerations.Partners
+@using Data.Enumerations.PayWall
+@using Data.Model.Cobrand
+@using Data.Model.RealEstate
+
+@model SecureArea.Areas.Partners.Models.CobrandEditModel
+@{
+    var cobrandSelects = EnumHelpers.GetValues<CobrandType>().Select(x => new SelectListItem
+    {
+        Text = x.GetDescription(),
+        Value = ((int)x).ToString(),
+        Selected = ((int)x) == Model.Cobrand.CobrandTypeInternal
+    });
+
+    var cobrandStatusSelects = EnumHelpers.GetValues<CobrandStatus>().Select(x => new SelectListItem
+    {
+        Text = x.GetDescription(),
+        Value = ((int)x).ToString(),
+        Selected = ((int)x) == Model.Cobrand.CobrandStatusInternal
+    });
+
+    var mailChimpSettingOptions = Model.MailChimpSettings != null ?
+        Model.MailChimpSettings.Select(a => new SelectListItem
+        {
+            Value = a.ID.ToString(),
+            Text = a.MailChimpListName,
+            Selected = Model.Cobrand.MailChimpSetting != null ? a.ID == Model.Cobrand.MailChimpSetting.ID : a.ID == 1,
+        }).ToList() : new List<SelectListItem>();
+
+    var userPrefPromptFreqSelects = EnumHelpers.GetValues<Enumerations.UserPreferencePromptFrequency>().Select(x => new SelectListItem
+    {
+        Text = x.GetDescription(),
+        Value = ((int)x).ToString(),
+        Selected = ((int)x) == Model.Cobrand.UserPreferencePromptFrequencyInternal
+    });
+
+    // set default values for mandatory fields
+    if (string.IsNullOrEmpty(Model.Cobrand.DomainName))
+    {
+        Model.Cobrand.DomainName = CobrandService.GetDomainNameFromConfig_DontUseThis_ForTestingOnly();
+    }
+    if (string.IsNullOrEmpty(Model.Cobrand.FromEmailAddress))
+    {
+        Model.Cobrand.FromEmailAddress = CobrandService.GetFromEmailAddressFromConfig_DontUseThis_ForTestingOnly();
+    }
+    if (string.IsNullOrEmpty(Model.Cobrand.FromName))
+    {
+        Model.Cobrand.FromName = "myprosperity";
+    }
+
+    var mpBKPlan = (int)MpPlanType.MpPartnerBookkeeper;
+}
+
+@if (Model.Cobrand.CreateDate.HasValue)
+{
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.CreateDate, "Create Date")
+        @Html.TextBoxFor(x => x.Cobrand.CreateDate, new { @class = "form-control", @disabled = "disabled", @readonly = "readonly" })
+    </div>
+}
+<div class="form-group">
+
+
+    @if (Model.Cobrand != null && !string.IsNullOrEmpty(Model.Cobrand.Token))
+    {
+        @Html.LabelFor(x => x.Cobrand.Token, "Do not change cobrand (token) once it is set. It will break comms. This is disabled to enforce this!!!")
+        @Html.TextBoxFor(x => x.Cobrand.Token, new { @class = "form-control", placeholder = "enter cobrand token", @readonly = "readonly" })
+    }
+    else
+    {
+        @Html.LabelFor(x => x.Cobrand.Token, "Token")
+        @Html.TextBoxFor(x => x.Cobrand.Token, new { @class = "form-control", placeholder = "enter cobrand token" })
+    }
+
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.EmailSignature, "Email signature")
+    @Html.TextBoxFor(x => x.Cobrand.EmailSignature, new { @class = "form-control", placeholder = "enter email signature" })
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.SupportEmailAddress, "Support email address")
+    @Html.TextBoxFor(x => x.Cobrand.SupportEmailAddress, new { type = "email", @class = "form-control", placeholder = "enter support email address", required = "required" })
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.DisplayName, "Display name")
+    @Html.TextBoxFor(x => x.Cobrand.DisplayName, new { @class = "form-control", placeholder = "enter display name", required = "required" })
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.HomeUrl, "Own website url")
+    @Html.TextBoxFor(x => x.Cobrand.HomeUrl, new { @class = "form-control", placeholder = "enter own website url" })
+</div>
+<div class="form-group">
+    <label>
+        @Html.LabelFor(x => x.Cobrand.CobrandType, "Cobrand type")
+        @Html.DropDownListFor(x => x.SelectedCobrandTypeInt, cobrandSelects, "", new { @class = "form-control" })
+    </label>
+</div>
+
+<div>
+    <label>
+        @Html.LabelFor(x => x.Cobrand.CobrandStatus, "Cobrand status")
+        @Html.DropDownListFor(x => x.SelectedCobrandStatusInt, cobrandStatusSelects, "", new { @class = "form-control" })
+
+
+    </label>
+</div>
+<div class="form-group" style="padding-top: 15px;">
+    @Html.LabelFor(x => x.Cobrand.MagicTags, "Magic tags (used for reporting, default blank, comma separated if multiple tags)")
+    @Html.TextBoxFor(x => x.Cobrand.MagicTags, new { @class = "form-control", placeholder = "" })
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.KeepAddressPrivate) Keep address private from clients
+    </label>
+</div>
+
+<h3>Manage Upgrade</h3>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.PaymentRedirectUrl, "Payment redirect Url")
+    @Html.TextBoxFor(x => x.Cobrand.PaymentRedirectUrl, new { @class = "form-control", placeholder = "enter payment redirect url" })
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.ManageUpgrade) Manage upgrades (upgrade requests will come to partner)
+    </label>
+    <br />
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.SkipPlanPage) Skip plan page when client upgrades.
+    </label>
+    <br />
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.AutoUpgrade) Auto upgrade client
+    </label>
+    <br />
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.UseSecureRedirect) Use secure redirect (with token)
+    </label>
+</div>
+<br />
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.EmphasiseProperty) Emphasise property (eg show property getting started wizard)
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.WhiteHeader) White header
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.ShowRetirementGapCalc) Show retirement gap calculator
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandAdsEnabled) Show ads/actions to clients (eg after signing a doc)
+    </label>
+</div>
+
+<div>
+    <label>
+        @Html.LabelFor(x => x.Cobrand.UserPreferencePromptFrequency, "How often to prompt clients for their preferences (minimum period)")
+        @*@Html.DropDownListFor(x => x.Cobrand.UserPreferencePromptFrequencyInternal, userPrefPromptFreqSelects, new { @class = "form-control" })*@
+        @Html.DropDownListFor(x => x.SelectedUserPreferencePromptFrequencyInt, userPrefPromptFreqSelects, new { @class = "form-control" })
+    </label>
+</div>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedAgencyBranchID, "Real estate agency branch (property valuation leads will be sent to this branch)")
+        @Html.DropDownListFor(x => x.SelectedAgencyBranchID, new SelectList(Model.AgencyBranchSelectors, "Value", "Text"), "", new { @class = "form-control" })
+    </label>
+</div>
+<h3>Billing</h3>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedAdviserBillingID, "Billing Account")
+        @Html.DropDownListFor(x => x.SelectedAdviserBillingID, new SelectList(Model.AdviserBillingSelectors, "Value", "Text"), "", new { @class = "form-control" })
+    </label>
+</div>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedPlanId, "Billing Plan")
+        @Html.DropDownListFor(x => x.SelectedPlanId, new SelectList(Model.Plans, "Value", "Text"), "", new { @class = "form-control", @id = "ddlPlan" })
+    </label>
+</div>
+<div class="form-group form-group-iscertifiedbookkeeper">
+    <label>
+        @Html.EditorFor(x => x.Cobrand.CobrandSettings.IsCertifiedBookkeeper, new { @id = "cbIsCertifiedBookkeeper" }) Is certified bookkeeper
+    </label>
+</div>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedPlanAddonId, "Billing Plan Addon")
+        @Html.DropDownListFor(x => x.SelectedPlanAddonId, new SelectList(Model.PlanAddons, "Value", "Text"), "", new { @class = "form-control" })
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.IsActive) Is Active
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.IsEnterprise) Is Enterprise
+    </label>
+</div>
+<h3>Pricing</h3>
+@*
+    <div class="form-group">
+        <label>
+            @Html.CheckBoxFor(x => x.Cobrand.IsCustomPriceActive) Use Cobrand Custom Price
+        </label>
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.AccountantPrice, "Accountant price")
+        @Html.TextBoxFor(x => x.Cobrand.AccountantPrice, new { @class = "form-control", placeholder = "enter price per accountant" })
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.ClientPrice, "Client price")
+        @Html.TextBoxFor(x => x.Cobrand.ClientPrice, new { @class = "form-control", placeholder = "enter price per client" })
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.ClientOverridePrice, "Client override")
+        @Html.TextBoxFor(x => x.Cobrand.ClientOverridePrice, new {@class = "form-control", placeholder = "enter override price per client"})
+    </div>
+*@
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.CobrandSettings.FreeProTrialPeriodOnJoinDays, "Free Pro trial period for new joins (days). ")
+    @Html.TextBoxFor(x => x.Cobrand.CobrandSettings.FreeProTrialPeriodOnJoinDays, new { @class = "form-control", placeholder = "Number of days (default to zero)" })
+</div>
+
+<h3>Form Fill</h3>
+<div class="form-group">
+    @Html.CheckBoxFor(x => x.Cobrand.FormFillEnabled) Enable Form FIll
+
+</div>
+
+<h3>Login/register page customisation</h3>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.RequirePhoneToRegister) Require phone number to register
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.HidePricingReg) Hide pricing link
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.HideFeaturesReg) Hide feature link
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.HideRegistration) Hide registration link
+    </label>
+</div>
+
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.SubTitleReg, "Subtitle text")
+    @Html.TextBoxFor(x => x.Cobrand.SubTitleReg, new { @class = "form-control", placeholder = "enter subtitle text" })
+</div>
+<h3>Custom URL</h3>
+<p>(don't change these values unless we have agreed to supply partner with custom URL)</p>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.DomainName, "*Domain name (including optional subdomain). Do NOT include http:// Default 'myprosperity.com.au'")
+    @Html.TextBoxFor(x => x.Cobrand.DomainName, new { @class = "form-control", placeholder = "Domain name" })
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.FromEmailAddress, "Please check with comms before changing email address - eg. update mailchimp")
+    @Html.LabelFor(x => x.Cobrand.FromEmailAddress, "*FROM email address for system generated emails. Default 'no-reply@myprosperity.com.au'")
+    @Html.TextBoxFor(x => x.Cobrand.FromEmailAddress, new { @class = "form-control", placeholder = "FROM email address" })
+</div>
+<div class="form-group">
+    @Html.LabelFor(x => x.Cobrand.FromName, "*FROM email NAME for system generated emails. Default 'myprosperity'")
+    @Html.TextBoxFor(x => x.Cobrand.FromName, new { @class = "form-control", placeholder = "FROM email NAME" })
+</div>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedMailChimpSettingID, "MailChimp Setting")
+        @Html.DropDownListFor(x => x.SelectedMailChimpSettingID, mailChimpSettingOptions, new { @class = "form-control" })
+    </label>
+</div>
+<h3>Region Settings</h3>
+<div>
+    <label>
+        @Html.LabelFor(x => x.SelectedRegionSettingsId, "Region")
+        @Html.DropDownListFor(x => x.SelectedRegionSettingsId, new SelectList(Model.RegionSettings, "Value", "Text"), new { @class = "form-control", @id = "ddlPlan" })
+    </label>
+</div>
+<h3>Data feeds</h3>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.MyobDataFeedEnabled) Enable MYOB data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.XeroDataFeedEnabled) Enable Xero data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.ClassDataFeedEnabled) Enable Class data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.BglDataFeedEnabled) Enable BGL data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.ImplementedPortfoliosDataFeedEnabled) Enable Implemented Portfolios data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.IoofLtsFeedEnabled) Enable IOOF Lifetrack data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.IoofMaxFeedEnabled) Enable IOOF Pursuit data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.IoofTasFeedEnabled) Enable IOOF TAS data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.MacquarieCashFeedEnabled) Enable Macquaire Cash data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.MacquarieWrapFeedEnabled) Enable Macquaire Wrap data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.ManagedAccountsFeedEnabled) Enable Managed Accounts data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.MasonStevensFeedEnabled) Enable Mason Stevens data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.MasonStevensRetailFeedEnabled) Enable Mason Stevens Retail data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.NetWealthFeedEnabled) Enable Netwealth data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.PraemiumFeedEnabled) Enable Praemium data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.SharesightFeedEnabled) Enable Sharesight data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.WealthO2FeedEnabled) Enable Wealth O2 data feed in partner portal
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.DataFeeds.XPlanFeedEnabled) Enable XPLAN data feed in partner portal
+    </label>
+</div>
+<h3>Wills</h3>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.WillSettings.IsWillGenerationAllowed) Allow will generation
+    </label>
+</div>
+<h3 style="display: @(SecureArea.WebConfigHelper.EnableGobbil ? "normal" : "none")">Gobbill</h3>
+<div style="display: @(SecureArea.WebConfigHelper.EnableGobbil ? "normal" : "none")">
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.GobbillSetting.IsGobbillEnabled) Enable Gobbill bar
+    </label>
+</div>
+
+<h3>Mobile App Settings</h3>
+
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.IsKidsAppEnabled) KidsApp Enabled
+    </label>
+</div>
+
+@for (int i = 0; i < Model.Cobrand.CobrandSettings.MobileApps.Count; i++)
+{
+    <h4>@Model.Cobrand.CobrandSettings.MobileApps[i].Platform.GetDescription()</h4>
+    @Html.HiddenFor(x => x.Cobrand.CobrandSettings.MobileApps[i].Platform)
+    <div>
+        <label>
+            @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.MobileApps[i].HasApp) Has App
+        </label>
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.CobrandSettings.MobileApps[i].AppId, "*App ID")
+        @Html.TextBoxFor(x => x.Cobrand.CobrandSettings.MobileApps[i].AppId, new { @class = "form-control", placeholder = "App ID" })
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.CobrandSettings.MobileApps[i].DownloadLink, "*Download Link")
+        @Html.TextBoxFor(x => x.Cobrand.CobrandSettings.MobileApps[i].DownloadLink, new { @class = "form-control", placeholder = "Download Link" })
+    </div>
+    <div class="form-group">
+        @Html.LabelFor(x => x.Cobrand.CobrandSettings.MobileApps[i].UrlScheme, "*Url Scheme")
+        @Html.TextBoxFor(x => x.Cobrand.CobrandSettings.MobileApps[i].UrlScheme, new { @class = "form-control", placeholder = "Url Scheme" })
+    </div>
+
+}
+<h3>Zoho Integration</h3>
+<div>
+    <label>
+        @Html.LabelFor(x => x.ZohoId, "Zoho Id")
+        @Html.TextBoxFor(x => x.ZohoId, new { @class = "form-control", placeholder = "Zoho Id" })
+    </label>
+</div>
+
+<h3>Security</h3>
+<div>
+    <label>
+        Last modified name: @Model.Cobrand.CobrandSettings.EnableFirmWideMFAByName
+    </label>
+    <br />
+    <label>
+        Last modified email: @Model.Cobrand.CobrandSettings.EnableFirmWideMFAByEmail
+    </label>
+    <br />
+    <label>
+        Last modified date: @Model.Cobrand.CobrandSettings.EnableFirmWideMFADate
+    </label>
+</div>
+<div>
+    <label>
+        @Html.CheckBoxFor(x => x.Cobrand.CobrandSettings.EnableFirmWideMFA) Enable firm-wide mandatory MFA
+    </label>
+</div>
+
+<h3>Cobrand Authentication Key</h3>
+<div>
+    <label>
+        @Html.LabelFor(x => x.Cobrand.CobrandSettings.CobrandAuthKey, "Authentication Key")
+        @Html.TextBoxFor(x => x.Cobrand.CobrandSettings.CobrandAuthKey, new { @class = "form-control", placeholder = "AuthKey", required = "required" })
+    </label>
+</div>
+
+<script type="text/javascript">
+    $(function() {
+        displayOrHideIsCertifiedBookkeeper();
+
+        $('#ddlPlan').on('change',
+            function() {
+                displayOrHideIsCertifiedBookkeeper();
+            });
+
+        $('#Cobrand_CobrandSettings_IsCertifiedBookkeeper').on('change',
+            function() {
+                $('[name="Cobrand.CobrandSettings.IsCertifiedBookkeeper"]')
+                    .val($('#Cobrand_CobrandSettings_IsCertifiedBookkeeper').prop('checked'));
+            });
+    });
+
+    function displayOrHideIsCertifiedBookkeeper() {
+        if ($('#ddlPlan').val() == Number(@mpBKPlan)) {
+            $('.form-group-iscertifiedbookkeeper').show();
+        } else {
+            $('.form-group-iscertifiedbookkeeper').hide();
+            $('#Cobrand_CobrandSettings_IsCertifiedBookkeeper').prop('checked', false);
+            $('#Cobrand_CobrandSettings_IsCertifiedBookkeeper').val('false');
+        }
+    }
+
+</script>

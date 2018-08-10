@@ -7,9 +7,11 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Business.PayWall;
 using Data;
 using Data.Enumerations.Notifications;
 using Data.Model;
+using Data.Model.Cobrand;
 using MyProsperity.Business.Interfaces;
 using MyProsperity.Framework;
 using MyProsperity.Framework.Caching;
@@ -21,12 +23,14 @@ using MyProsperity.Notification.TemplateEngine;
 using Newtonsoft.Json;
 using StructureMap;
 
+
 namespace Business
 {
     public class PushNotificationService : DBService, IPushNotificationService
     {
         private readonly NotificationTemplateService _notificationTemplateService;
         private readonly ITemplateEngine _templateEngine = IocHelper.Get<ITemplateEngine>();
+
 
         public PushNotificationService(DBContext context) : base(context)
         {
@@ -76,6 +80,7 @@ namespace Business
                 LastLoginDate = lastLoginDate,
                 MobilePlatformType = mobilePlatform,
                 SNSToken = snsToken,
+                SnsEndpointAuthKey = account.CobrandToUse.CobrandSettings.CobrandAuthKey
             };
 
             try
@@ -152,7 +157,16 @@ namespace Business
         {
             if (retries == 0)
                 return;
-          
+
+
+            //calculate the snsauthkey
+            var snsAuthKeyToUse = endpoint.SnsEndpointAuthKey;
+
+            if (string.IsNullOrEmpty(snsAuthKeyToUse))
+            {
+                 snsAuthKeyToUse = "AIzaSyDPr3u0jzTYoNzmrauUprXbvd9su4D4lgk";
+            }
+
             try
             {
                 var tRequest = WebRequest.Create(ConfigHelper.TryGetOrDefault("FCMWebRequestUri", "https://fcm.googleapis.com/fcm/send"));
@@ -160,7 +174,8 @@ namespace Business
                 tRequest.ContentType = "application/json";
 
                 var byteArray = Encoding.UTF8.GetBytes(jsonObj);
-                tRequest.Headers.Add(string.Format("Authorization: key={0}", ConfigHelper.TryGetOrDefault("FCMWebRequestAuthorizationToken", "AIzaSyDPr3u0jzTYoNzmrauUprXbvd9su4D4lgk")));
+                //tRequest.Headers.Add(string.Format("Authorization: key={0}", ConfigHelper.TryGetOrDefault("FCMWebRequestAuthorizationToken", "AIzaSyDPr3u0jzTYoNzmrauUprXbvd9su4D4lgk")));
+                tRequest.Headers.Add(string.Format("Authorization: key={0}", ConfigHelper.TryGetOrDefault("FCMWebRequestAuthorizationToken", snsAuthKeyToUse)));
                 tRequest.ContentLength = byteArray.Length;
                 using (var dataStream = tRequest.GetRequestStream())
                 {
