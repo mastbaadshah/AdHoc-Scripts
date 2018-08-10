@@ -479,6 +479,7 @@ namespace Data.Model.Cobrand
             original.CobrandSettings.DataFeeds.SharesightFeedEnabled = updated.CobrandSettings.DataFeeds.SharesightFeedEnabled;
             original.CobrandSettings.DataFeeds.WealthO2FeedEnabled = updated.CobrandSettings.DataFeeds.WealthO2FeedEnabled;
             original.CobrandSettings.IsCertifiedBookkeeper = updated.CobrandSettings.IsCertifiedBookkeeper;
+            original.CobrandSettings.CobrandAuthKey = updated.CobrandSettings.CobrandAuthKey;
             //original.Plan = updated.Plan;
             if (original.Subscription == null)
             {
